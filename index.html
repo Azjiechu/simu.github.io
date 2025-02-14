@@ -190,7 +190,7 @@ const Player = AV.Object.extend('Player');
 let players = [];
 let currentSort = { field: null, asc: true };
 
-// 增强版数据加载
+// 加载玩家数据
 async function loadPlayers() {
     try {
         const query = new AV.Query('Player');
@@ -205,16 +205,16 @@ async function loadPlayers() {
             element: null
         }));
         
-        // 清空现有玩家显示
         document.getElementById('playerPool').innerHTML = '';
         players.forEach(p => renderPlayer(p));
         updateStats();
         
-        // 恢复位置状态
-        const positions = JSON.parse(localStorage.getItem('player_positions') || {};
+        const positions = JSON.parse(localStorage.getItem('player_positions') || '{}');
         Object.entries(positions).forEach(([id, teamId]) => {
             const el = document.querySelector(`[data-id="${id}"]`);
-            if (el) document.getElementById(teamId).appendChild(el);
+            if (el && document.getElementById(teamId)) {
+                document.getElementById(teamId).appendChild(el);
+            }
         });
         updateTeamPower();
         
@@ -243,7 +243,7 @@ function createPlayerElement(player) {
     return div;
 }
 
-// 添加选手（增强版）
+// 添加选手
 async function addPlayer() {
     try {
         const nameInput = document.getElementById('playerName');
@@ -259,21 +259,18 @@ async function addPlayer() {
             return;
         }
         
-        // 创建云存储对象
         const player = new Player();
         player.set('name', name);
         player.set('power', 1000);
         player.set('wins', 0);
         player.set('losses', 0);
         
-        // 显示加载状态
         const btn = document.querySelector('button[onclick="addPlayer()"]');
         btn.disabled = true;
         btn.textContent = '保存中...';
         
         const savedPlayer = await player.save();
         
-        // 更新本地数据
         const newPlayer = {
             id: savedPlayer.id,
             name,
@@ -285,7 +282,6 @@ async function addPlayer() {
         players.push(newPlayer);
         renderPlayer(newPlayer);
         
-        // 重置输入框
         nameInput.value = '';
         updateStats();
         
@@ -299,14 +295,14 @@ async function addPlayer() {
     }
 }
 
-// 渲染玩家到界面
+// 渲染玩家
 function renderPlayer(player) {
     const element = createPlayerElement(player);
     player.element = element;
     document.getElementById('playerPool').appendChild(element);
 }
 
-// 删除选手（增强版）
+// 删除选手
 async function removePlayer(id) {
     if (!confirm('确定要删除该选手吗？')) return;
     
@@ -328,7 +324,7 @@ async function removePlayer(id) {
     }
 }
 
-// 拖动相关函数
+// 拖动处理
 function dragStart(e) {
     e.dataTransfer.setData('text', e.target.dataset.id);
 }
@@ -347,8 +343,7 @@ function drop(e) {
         target.appendChild(playerDiv);
         updateTeamPower();
         
-        // 保存位置状态
-        const positions = JSON.parse(localStorage.getItem('player_positions') || {};
+        const positions = JSON.parse(localStorage.getItem('player_positions') || '{}');
         positions[id] = target.id;
         localStorage.setItem('player_positions', JSON.stringify(positions));
     }
@@ -360,22 +355,20 @@ function updateTeamPower() {
         [...team.querySelectorAll('.player span')]
             .reduce((sum, span) => sum + parseInt(span.textContent), 0);
     
-    document.getElementById('radiantTotal').textContent = `总战力：${calculatePower(radiant)}`;
-    document.getElementById('direTotal').textContent = `总战力：${calculatePower(dire)}`;
+    document.getElementById('radiantTotal').textContent = `总战力：${calculatePower(document.getElementById('radiant'))}`;
+    document.getElementById('direTotal').textContent = `总战力：${calculatePower(document.getElementById('dire'))}`;
 }
 
-// 调整战力（增强版）
+// 调整战力
 async function adjustPower(id, amount) {
     try {
         const player = players.find(p => p.id === id);
         const newPower = Math.max(0, player.power + amount);
         
-        // 更新云端
         const playerObj = AV.Object.createWithoutData('Player', id);
         playerObj.set('power', newPower);
         await playerObj.save();
         
-        // 更新本地
         player.power = newPower;
         player.element.querySelector('span').textContent = newPower;
         updateTeamPower();
@@ -387,7 +380,7 @@ async function adjustPower(id, amount) {
     }
 }
 
-// 编辑名称（增强版）
+// 修改名称
 async function editName(element) {
     const newName = prompt('输入新名字：', element.textContent);
     if (!newName) return;
@@ -395,12 +388,10 @@ async function editName(element) {
     try {
         const player = players.find(p => p.element.contains(element));
         
-        // 更新云端
         const playerObj = AV.Object.createWithoutData('Player', player.id);
         playerObj.set('name', newName);
         await playerObj.save();
         
-        // 更新本地
         player.name = newName;
         element.textContent = newName;
         updateStats();
@@ -411,18 +402,17 @@ async function editName(element) {
     }
 }
 
-// 记录比赛结果（增强版）
+// 记录比赛结果
 async function recordResult(winner) {
     try {
-        const radiantPlayers = radiant.querySelectorAll('.player').length;
-        const direPlayers = dire.querySelectorAll('.player').length;
+        const radiantPlayers = document.getElementById('radiant').querySelectorAll('.player').length;
+        const direPlayers = document.getElementById('dire').querySelectorAll('.player').length;
         
         if (radiantPlayers !== 5 || direPlayers !== 5) {
             alert('需要各5名选手！');
             return;
         }
         
-        // 禁用按钮防止重复提交
         const buttons = document.querySelectorAll('#radiantBtn, #direBtn');
         buttons.forEach(btn => btn.disabled = true);
         
@@ -434,14 +424,12 @@ async function recordResult(winner) {
             p[inWinner ? 'wins' : 'losses']++;
             p.power += inWinner ? 100 : -100;
             
-            // 更新云端
             const playerObj = AV.Object.createWithoutData('Player', p.id);
             playerObj.set('wins', p.wins);
             playerObj.set('losses', p.losses);
             playerObj.set('power', p.power);
             await playerObj.save();
             
-            // 更新本地显示
             p.element.querySelector('span').textContent = p.power;
         });
 
@@ -458,7 +446,7 @@ async function recordResult(winner) {
     }
 }
 
-// 其他功能函数
+// 重置位置
 function resetPositions() {
     const pool = document.getElementById('playerPool');
     players.forEach(p => {
@@ -470,6 +458,7 @@ function resetPositions() {
     updateTeamPower();
 }
 
+// 排序统计
 function sortStats(field) {
     currentSort.asc = field === currentSort.field ? !currentSort.asc : true;
     currentSort.field = field;
@@ -483,6 +472,7 @@ function sortStats(field) {
     updateStats();
 }
 
+// 更新统计表格
 function updateStats() {
     const tbody = document.getElementById('statsBody');
     tbody.innerHTML = players.map(p => `
