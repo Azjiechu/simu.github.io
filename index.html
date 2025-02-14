@@ -190,6 +190,7 @@ const Player = AV.Object.extend('Player');
 let players = [];
 let currentSort = { field: null, asc: true };
 
+// ================== 功能函数 ==================
 // 加载玩家数据
 async function loadPlayers() {
     try {
@@ -486,7 +487,7 @@ function updateStats() {
     `).join('');
 }
 
-// 初始化加载
+// ================== 初始化 ==================
 document.addEventListener('DOMContentLoaded', () => {
     loadPlayers();
     document.getElementById('playerName').addEventListener('keypress', (e) => {
