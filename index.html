@@ -134,6 +134,7 @@
             display: block;
         }
     </style>
+    <script src="//cdn.jsdelivr.net/npm/leancloud-storage@4.12.0/dist/av-min.js"></script>
 </head>
 <body>
     <h1>是谁在犯罪？谁的打法不团队？</h1>
@@ -178,8 +179,31 @@
     </table>
 
 <script>
+// LeanCloud 初始化（需替换为你的凭证）
+AV.init({
+    appId: 0gmha9i0rHn16GL5e2wIJQHK-MdYXbMMI,
+    appKey: sBa1dtO7EzRmF0OUAp0muKoY,
+    serverURL: https://0gmha9i0.api.lncldglobal.com
+});
+
+const Player = AV.Object.extend('Player');
 let players = [];
 let currentSort = { field: null, asc: true };
+
+async function loadPlayers() {
+    const query = new AV.Query('Player');
+    const results = await query.find();
+    players = results.map(p => ({
+        id: p.id,
+        name: p.get('name'),
+        power: p.get('power'),
+        wins: p.get('wins'),
+        losses: p.get('losses'),
+        element: null
+    }));
+    players.forEach(p => renderPlayer(p));
+    updateStats();
+}
 
 function createPlayerElement(player) {
     const div = document.createElement('div');
@@ -199,7 +223,7 @@ function createPlayerElement(player) {
     return div;
 }
 
-function addPlayer() {
+async function addPlayer() {
     const nameInput = document.getElementById('playerName');
     const name = nameInput.value.trim();
     if (!name) {
@@ -211,33 +235,33 @@ function addPlayer() {
         return;
     }
     
-    const player = {
-        id: 'player_' + Date.now(),
+    const player = new Player();
+    player.set('name', name);
+    player.set('power', 1000);
+    player.set('wins', 0);
+    player.set('losses', 0);
+    const savedPlayer = await player.save();
+    
+    players.push({
+        id: savedPlayer.id,
         name,
         power: 1000,
         wins: 0,
         losses: 0,
         element: null
-    };
-    
-    players.push(player);
-    renderPlayer(player);
+    });
+    renderPlayer(players[players.length-1]);
     nameInput.value = '';
     updateStats();
 }
 
-function renderPlayer(player) {
-    const element = createPlayerElement(player);
-    player.element = element;
-    document.getElementById('playerPool').appendChild(element);
-}
-
-function removePlayer(id) {
+async function removePlayer(id) {
+    const playerObj = AV.Object.createWithoutData('Player', id);
+    await playerObj.destroy();
+    
     const index = players.findIndex(p => p.id === id);
     if (index === -1) return;
-    
-    const player = players[index];
-    player.element.remove();
+    players[index].element.remove();
     players.splice(index, 1);
     updateTeamPower();
     updateStats();
@@ -272,12 +296,17 @@ function updateTeamPower() {
     document.getElementById('direTotal').textContent = `总战力：${calculatePower(dire)}`;
 }
 
-function adjustPower(id, amount) {
+async function adjustPower(id, amount) {
     const player = players.find(p => p.id === id);
     player.power = Math.max(0, player.power + amount);
+    
+    const playerObj = AV.Object.createWithoutData('Player', id);
+    playerObj.set('power', player.power);
+    await playerObj.save();
+
     player.element.querySelector('span').textContent = player.power;
     updateTeamPower();
-    updateStats(); // 确保统计数据同步更新
+    updateStats();
 }
 
 function editName(element) {
@@ -286,11 +315,14 @@ function editName(element) {
         element.textContent = newName;
         const player = players.find(p => p.element.contains(element));
         player.name = newName;
+        const playerObj = AV.Object.createWithoutData('Player', player.id);
+        playerObj.set('name', newName);
+        playerObj.save();
         updateStats();
     }
 }
 
-function recordResult(winner) {
+async function recordResult(winner) {
     const radiantPlayers = radiant.querySelectorAll('.player').length;
     const direPlayers = dire.querySelectorAll('.player').length;
     
@@ -299,16 +331,24 @@ function recordResult(winner) {
         return;
     }
     
-    players.forEach(p => {
+    const updates = players.map(async p => {
         const parent = p.element.parentElement;
         if (!parent) return;
         
         const inWinner = parent.id === winner;
         p[inWinner ? 'wins' : 'losses']++;
         p.power += inWinner ? 100 : -100;
+
+        const playerObj = AV.Object.createWithoutData('Player', p.id);
+        playerObj.set('wins', p.wins);
+        playerObj.set('losses', p.losses);
+        playerObj.set('power', p.power);
+        await playerObj.save();
+        
         p.element.querySelector('span').textContent = p.power;
     });
-    
+
+    await Promise.all(updates);
     updateStats();
     updateTeamPower();
 }
@@ -349,9 +389,12 @@ function updateStats() {
     `).join('');
 }
 
-// 初始化
-document.getElementById('playerName').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') addPlayer();
+// 初始化加载数据
+document.addEventListener('DOMContentLoaded', () => {
+    loadPlayers();
+    document.getElementById('playerName').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addPlayer();
+    });
 });
 </script>
 </body>
