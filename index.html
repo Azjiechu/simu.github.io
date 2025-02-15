@@ -215,6 +215,12 @@ let players = [];
 let currentSort = { field: null, asc: true };
 
 // ================ 核心函数 ================
+function renderPlayer(player) {
+    const playerDiv = createPlayerElement(player); 
+    const playerPool = document.getElementById('playerPool');
+    playerPool.appendChild(playerDiv); 
+    player.element = playerDiv; 
+}
 async function loadPlayers() {
     try {
         const query = new AV.Query('Player');
