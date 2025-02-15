@@ -1,6 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DOTA2 战况统计</title>
     <!-- LeanCloud SDK -->
     <script src="https://cdn1.tianli0.top/npm/leancloud-storage@4.13.2/dist/av-min.js"></script>
@@ -181,10 +183,9 @@
 
 <script>
 // ================ LeanCloud 配置 ================
-const APP_ID = 'i8SojdeyuJSIQuOKMhgrnPp2-MdYXbMMI';         // 替换为你的APP ID
-const APP_KEY = 'rUH2IVgkqwW5KgV0DPKNmqL7';       // 替换为你的APP KEY
-const SERVER_URL = 'https://i8sojdey.api.lncldglobal.com'; // 替换为你的REST API地址
-
+const APP_ID = 'i8SojdeyuJSIQuOKMhgrnPp2-MdYXbMMI';
+const APP_KEY = 'rUH2IVgkqwW5KgV0DPKNmqL7';
+const SERVER_URL = 'https://i8sojdey.api.lncldglobal.com';
 // 配置验证
 if (APP_ID.includes('YOUR') || APP_KEY.includes('YOUR') || SERVER_URL.includes('YOUR')) {
     document.body.innerHTML = `
@@ -246,8 +247,8 @@ async function savePlayer(playerData) {
         playerObj.set('power', playerData.power);
         playerObj.set('wins', playerData.wins);
         playerObj.set('losses', playerData.losses);
-        const savedPlayer = await playerObj.save();
-        return savedPlayer.id;
+        const savedObj = await playerObj.save();
+        return savedObj.id;
     } catch (error) {
         alert('保存失败: ' + error.message);
         throw error;
@@ -423,7 +424,7 @@ function updateStats() {
             <td>${p.name}</td>
             <td>${p.wins}</td>
             <td>${p.losses}</td>
-            <td>${((p.wins/(p.wins+p.losses)*100 || 0).toFixed(1)}%</td>
+            <td>${((p.wins/(p.wins+p.losses)*100 || 0).toFixed(1))}%</td>
             <td>${p.power}</td>
         </tr>
     `).join('');
