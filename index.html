@@ -296,12 +296,15 @@ async function addPlayer() {
             wins: 0,
             losses: 0
         };
-        const id = await savePlayer(newPlayer);
+        const id = await savePlayer(newPlayer); // 保存玩家数据到 LeanCloud
         const player = { ...newPlayer, id, element: null };
         players.push(player);
-        renderPlayer(player);
-        nameInput.value = '';
-        updateStats();
+        
+        // 渲染玩家到页面
+        renderPlayer(player); 
+
+        nameInput.value = ''; // 清空输入框
+        updateStats(); // 更新统计信息
     } catch (error) {
         alert(error.message);
     }
