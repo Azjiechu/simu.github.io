@@ -186,21 +186,6 @@
 const APP_ID = 'i8SojdeyuJSIQuOKMhgrnPp2-MdYXbMMI';
 const APP_KEY = 'rUH2IVgkqwW5KgV0DPKNmqL7';
 const SERVER_URL = 'https://i8sojdey.api.lncldglobal.com';
-// 配置验证
-if (APP_ID.includes('YOUR') || APP_KEY.includes('YOUR') || SERVER_URL.includes('YOUR')) {
-    document.body.innerHTML = `
-        <div style="color:red; padding:20px;">
-            <h2>配置错误！</h2>
-            <p>请先配置LeanCloud应用信息：</p>
-            <ol>
-                <li>登录 <a href="https://leancloud.cn" target="_blank">LeanCloud控制台</a></li>
-                <li>进入应用 → 设置 → 应用凭证</li>
-                <li>复制APP ID、APP KEY和REST API地址</li>
-            </ol>
-        </div>
-    `;
-    throw new Error('未配置LeanCloud参数');
-}
 
 // 初始化SDK
 AV.init({
@@ -209,66 +194,17 @@ AV.init({
     serverURL: SERVER_URL
 });
 
-// ================ 数据模型 ================
+// 数据模型
 const Player = AV.Object.extend('Player');
 let players = [];
 let currentSort = { field: null, asc: true };
 
 // ================ 核心函数 ================
 function renderPlayer(player) {
-    const playerDiv = createPlayerElement(player); 
+    const playerDiv = createPlayerElement(player);
     const playerPool = document.getElementById('playerPool');
-    playerPool.appendChild(playerDiv); 
-    player.element = playerDiv; 
-}
-async function loadPlayers() {
-    try {
-        const query = new AV.Query('Player');
-        const results = await query.find();
-        players = results.map(obj => ({
-            id: obj.id,
-            name: obj.get('name'),
-            power: obj.get('power'),
-            wins: obj.get('wins'),
-            losses: obj.get('losses'),
-            element: null
-        }));
-        players.forEach(player => renderPlayer(player));
-        updateTeamPower();
-        updateStats();
-    } catch (error) {
-        alert('数据加载失败: ' + error.message);
-    }
-}
-
-async function savePlayer(playerData) {
-    try {
-        let playerObj;
-        if (playerData.id) {
-            playerObj = AV.Object.createWithoutData('Player', playerData.id);
-        } else {
-            playerObj = new Player();
-        }
-        playerObj.set('name', playerData.name);
-        playerObj.set('power', playerData.power);
-        playerObj.set('wins', playerData.wins);
-        playerObj.set('losses', playerData.losses);
-        const savedObj = await playerObj.save();
-        return savedObj.id;
-    } catch (error) {
-        alert('保存失败: ' + error.message);
-        throw error;
-    }
-}
-
-async function deletePlayer(id) {
-    try {
-        const playerObj = AV.Object.createWithoutData('Player', id);
-        await playerObj.destroy();
-    } catch (error) {
-        alert('删除失败: ' + error.message);
-        throw error;
-    }
+    playerPool.appendChild(playerDiv); // 添加到页面
+    player.element = playerDiv; // 保存 player 元素以供后续操作
 }
 
 function createPlayerElement(player) {
@@ -289,157 +225,28 @@ function createPlayerElement(player) {
     return div;
 }
 
-async function addPlayer() {
-    const nameInput = document.getElementById('playerName');
-    const name = nameInput.value.trim();
+// 加载玩家数据
+async function loadPlayers() {
     try {
-        if (!name) throw new Error('请输入选手名称');
-        if (players.some(p => p.name === name)) throw new Error('选手已存在');
-
-        const newPlayer = {
-            name,
-            power: 1000,
-            wins: 0,
-            losses: 0
-        };
-        const id = await savePlayer(newPlayer); // 保存玩家数据到 LeanCloud
-        const player = { ...newPlayer, id, element: null };
-        players.push(player);
-        
-        // 渲染玩家到页面
-        renderPlayer(player); 
-
-        nameInput.value = ''; // 清空输入框
-        updateStats(); // 更新统计信息
-    } catch (error) {
-        alert(error.message);
-    }
-}
-
-async function removePlayer(id) {
-    try {
-        await deletePlayer(id);
-        const index = players.findIndex(p => p.id === id);
-        players[index].element.remove();
-        players.splice(index, 1);
-        updateTeamPower();
-        updateStats();
-    } catch (error) {
-        alert(error.message);
-    }
-}
-
-function dragStart(e) {
-    e.dataTransfer.setData('text', e.target.dataset.id);
-}
-
-function allowDrop(e) {
-    e.preventDefault();
-}
-
-function drop(e) {
-    e.preventDefault();
-    const id = e.dataTransfer.getData('text');
-    const playerDiv = document.querySelector(`[data-id="${id}"]`);
-    const target = e.target.closest('.team-box');
-    if (target && !target.contains(playerDiv)) {
-        target.appendChild(playerDiv);
-        updateTeamPower();
-    }
-}
-
-function updateTeamPower() {
-    const calculatePower = (team) => 
-        [...team.querySelectorAll('.player span')]
-            .reduce((sum, span) => sum + parseInt(span.textContent), 0);
-    document.getElementById('radiantTotal').textContent = `总战力：${calculatePower(radiant)}`;
-    document.getElementById('direTotal').textContent = `总战力：${calculatePower(dire)}`;
-}
-
-async function adjustPower(id, amount) {
-    try {
-        const player = players.find(p => p.id === id);
-        player.power = Math.max(0, player.power + amount);
-        player.element.querySelector('span').textContent = player.power;
-        await savePlayer(player);
-        updateTeamPower();
-        updateStats();
-    } catch (error) {
-        alert('调整战力失败: ' + error.message);
-    }
-}
-
-async function editName(element) {
-    const newName = prompt('输入新名字：', element.textContent);
-    if (newName) {
-        try {
-            element.textContent = newName;
-            const player = players.find(p => p.element.contains(element));
-            player.name = newName;
-            await savePlayer(player);
-            updateStats();
-        } catch (error) {
-            alert('修改名称失败: ' + error.message);
-        }
-    }
-}
-
-async function recordResult(winner) {
-    try {
-        const radiantPlayers = radiant.querySelectorAll('.player').length;
-        const direPlayers = dire.querySelectorAll('.player').length;
-        if (radiantPlayers !== 5 || direPlayers !== 5) throw new Error('需要各5名选手！');
-
-        await Promise.all(players.map(async p => {
-            const parent = p.element.parentElement;
-            if (!parent) return;
-            const inWinner = parent.id === winner;
-            p[inWinner ? 'wins' : 'losses']++;
-            p.power += inWinner ? 100 : -100;
-            await savePlayer(p);
+        const query = new AV.Query('Player');
+        const results = await query.find();
+        players = results.map(obj => ({
+            id: obj.id,
+            name: obj.get('name'),
+            power: obj.get('power'),
+            wins: obj.get('wins'),
+            losses: obj.get('losses'),
+            element: null
         }));
-        updateStats();
+        players.forEach(player => renderPlayer(player)); // 渲染玩家
         updateTeamPower();
+        updateStats();
     } catch (error) {
-        alert(error.message);
+        alert('数据加载失败: ' + error.message);
     }
 }
 
-function resetPositions() {
-    const pool = document.getElementById('playerPool');
-    players.forEach(p => {
-        if (!pool.contains(p.element)) {
-            pool.appendChild(p.element);
-        }
-    });
-    updateTeamPower();
-}
-
-function sortStats(field) {
-    currentSort.asc = field === currentSort.field ? !currentSort.asc : true;
-    currentSort.field = field;
-    players.sort((a, b) => {
-        const valA = field === 'rate' ? a.wins/(a.wins+a.losses) : a[field];
-        const valB = field === 'rate' ? b.wins/(b.wins+b.losses) : b[field];
-        return currentSort.asc ? valB - valA : valA - valB;
-    });
-    updateStats();
-}
-
-function updateStats() {
-    const tbody = document.getElementById('statsBody');
-    tbody.innerHTML = players.map(p => `
-        <tr>
-            <td>${p.name}</td>
-            <td>${p.wins}</td>
-            <td>${p.losses}</td>
-            <td>${((p.wins/(p.wins+p.losses)*100 || 0).toFixed(1))}%</td>
-            <td>${p.power}</td>
-        </tr>
-    `).join('');
-}
-
-// ================ 初始化 ================
+// 执行页面加载时调用的函数
 document.addEventListener('DOMContentLoaded', () => {
     loadPlayers();
     document.getElementById('playerName').addEventListener('keypress', (e) => {
